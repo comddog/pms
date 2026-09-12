@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>별빛도서관 관리자 설정</title>
+<style>
+  :root {
+    --navy-1: #101b3e; --navy-2: #1c2a5e; --gold: #f5c542;
+    --line: #e3e7f2; --text: #1d2440; --muted: #7a829e;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Apple SD Gothic Neo",
+                 "Noto Sans KR", "Malgun Gothic", sans-serif;
+    background: linear-gradient(160deg, var(--navy-1) 0%, var(--navy-2) 55%, #24356f 100%);
+    color: var(--text); -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 480px; margin: 0 auto; min-height: 100dvh; display: flex; flex-direction: column; padding: 28px 18px 18px; }
+  header { text-align: center; color: #fff; margin-bottom: 20px; }
+  .org { font-size: 13px; letter-spacing: 2px; opacity: .85; margin-bottom: 10px; }
+  h1 { font-size: 24px; font-weight: 700; }
+  .status { display: inline-block; margin-top: 12px; font-size: 13px; padding: 6px 14px; border-radius: 999px;
+            background: rgba(255,255,255,.14); color: #ffe9a8; border: 1px solid rgba(255,255,255,.25); }
+  main { flex: 1; }
+  .card { background: #fff; border-radius: 18px; padding: 22px 18px; margin-bottom: 14px;
+          box-shadow: 0 12px 40px rgba(6,12,40,.45); }
+  .field { margin-bottom: 14px; }
+  label { display: block; font-size: 14px; font-weight: 700; margin-bottom: 6px; color: #3a4160; }
+  .hint { font-weight: 400; font-size: 12px; color: var(--muted); }
+  input {
+    width: 100%; height: 48px; font-size: 16px; font-family: inherit;
+    border: 1.5px solid var(--line); border-radius: 12px;
+    padding: 0 14px; background: #fafbfe; color: var(--text);
+    -webkit-appearance: none; appearance: none;
+  }
+  input:focus { outline: none; border-color: #5a6ac9; background: #fff; }
+  button {
+    width: 100%; height: 52px; font-size: 16px; font-weight: 700; font-family: inherit;
+    color: #221a04; background: linear-gradient(180deg, #ffd866, var(--gold));
+    border: none; border-radius: 12px; cursor: pointer;
+  }
+  button:active { transform: translateY(1px); }
+  button:disabled { opacity: .55; cursor: wait; }
+  .msg { margin-top: 12px; font-size: 14px; text-align: center; color: #2d7a43; line-height: 1.6; }
+  .msg.err { color: #d33; }
+  .note { margin-top: 16px; padding: 12px 14px; background: #f6f8ff; border-radius: 10px;
+          font-size: 13px; color: #4a5480; line-height: 1.7; }
+  .eff { margin-top: 10px; font-size: 13px; color: var(--muted); text-align: center; line-height: 1.6; }
+  footer { text-align: center; padding: 18px 0 8px; }
+  footer a { color: rgba(255,255,255,.8); font-size: 14px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <p class="org">일광초등학교 별빛도서관</p>
+    <h1>관리자 설정</h1>
+    <p id="statusLine" class="status">상태 확인 중&hellip;</p>
+  </header>
+
+  <main>
+    <section class="card">
+      <div class="field">
+        <label for="pass">관리자 비밀번호 <span class="hint">(Code.gs의 ADMIN_PASSWORD)</span></label>
+        <input id="pass" type="password" placeholder="비밀번호 입력">
+      </div>
+      <button id="loadBtn" type="button">설정 불러오기</button>
+      <p id="msg" class="msg" hidden></p>
+    </section>
+
+    <section id="panel" class="card" hidden>
+      <div class="field">
+        <label for="fTitle">제목 <span class="hint">(『 』는 자동 표시, 비우면 '책과 문화의 밤')</span></label>
+        <input id="fTitle" type="text" maxlength="60" placeholder="예) 책과 문화의 밤">
+      </div>
+      <div class="field">
+        <label for="fOpen">신청 시작 시각 <span class="hint">(비우면 즉시 오픈)</span></label>
+        <input id="fOpen" type="text" inputmode="numeric" placeholder="예) 2026-10-05 19:00">
+      </div>
+      <div class="field">
+        <label for="fConfirmed">모집인원 <span class="hint">(선착순 확정, 비우면 15명)</span></label>
+        <input id="fConfirmed" type="text" inputmode="numeric" placeholder="예) 15">
+      </div>
+      <div class="field">
+        <label for="fWaitlist">대기자수 <span class="hint">(비우면 15명)</span></label>
+        <input id="fWaitlist" type="text" inputmode="numeric" placeholder="예) 15">
+      </div>
+      <div class="field">
+        <label for="fTotal">신청마감자수 <span class="hint">(이 수에 도달하면 마감, 비우면 모집+대기)</span></label>
+        <input id="fTotal" type="text" inputmode="numeric" placeholder="예) 30">
+      </div>
+      <button id="saveBtn" type="button">저장 — 즉시 반영</button>
+      <p id="eff" class="eff"></p>
+      <p class="note">
+        저장한 값은 스프레드시트 '설정' 시트에 기록되며, 시트에서 직접 고쳐도 같은 효과가 있습니다.<br>
+        칸을 비우면 기본값(15 / 15 / 모집+대기 / '책과 문화의 밤' / 즉시 오픈)이 적용됩니다.<br>
+        이미 오픈된 뒤 미래 시각을 넣으면 다시 잠깁니다. 긴 제목은 문자 요금이 장문(LMS)이 될 수 있어요.
+      </p>
+    </section>
+  </main>
+
+  <footer><a href="./index.html">신청 페이지로 돌아가기</a></footer>
+</div>
+
+<script>
+/* ============================================================
+ * 설정: index.html에 넣은 것과 같은 앱스 스크립트 웹앱 주소를 붙여넣으세요.
+ * ============================================================ */
+const API_BASE = 'https://script.google.com/macros/s/AKfycbxsmJB0WSh06063KUXAS6nwSdAuhIHyazQjX5KixHSm-Wsn2xph4fhF9Pa-HnBDmXeM/exec';
+
+const $ = (id) => document.getElementById(id);
+const statusLine = $('statusLine');
+const msgEl = $('msg');
+const loadBtn = $('loadBtn');
+const saveBtn = $('saveBtn');
+
+function showMsg(text, isErr) {
+  msgEl.textContent = text;
+  msgEl.classList.toggle('err', !!isErr);
+  msgEl.hidden = false;
+}
+
+async function callApi(params) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 15000);
+  try {
+    const res = await fetch(API_BASE + '?' + new URLSearchParams(params), {
+      method: 'GET', signal: ctrl.signal,
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    return await res.json();
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/* 현황선: status는 공개 액션이라 비밀번호 불필요 */
+async function refreshStatus() {
+  if (!API_BASE) {
+    statusLine.textContent = '설정 필요: API_BASE에 웹앱 주소 입력';
+    return;
+  }
+  try {
+    const d = await callApi({ action: 'status' });
+    const phaseTxt = d.closed ? '마감' : (d.phase === 'before' ? '오픈 대기' : '신청 진행 중');
+    statusLine.textContent = phaseTxt + ' · 현재 ' + d.count + '명 / 마감 ' + d.limit + '명';
+  } catch (e) {
+    statusLine.textContent = '백엔드에 연결할 수 없습니다';
+  }
+}
+
+loadBtn.addEventListener('click', async function () {
+  msgEl.hidden = true;
+  const pass = $('pass').value;
+  if (!pass) { showMsg('비밀번호를 입력하세요.', true); return; }
+  loadBtn.disabled = true;
+  try {
+    const d = await callApi({ action: 'admin_get', pass: pass });
+    if (!d.ok) { showMsg(d.detail || '불러오지 못했습니다.', true); return; }
+    $('fTitle').value = d.values.title;
+    $('fOpen').value = d.values.open;
+    $('fConfirmed').value = d.values.confirmed;
+    $('fWaitlist').value = d.values.waitlist;
+    $('fTotal').value = d.values.total;
+    $('panel').hidden = false;
+    showMsg('설정을 불러왔습니다. 빈 칸은 기본값을 사용합니다.');
+  } catch (e) {
+    showMsg('불러오기 실패 — 백엔드 주소와 네트워크를 확인하세요.', true);
+  }
+  loadBtn.disabled = false;
+  refreshStatus();
+});
+
+saveBtn.addEventListener('click', async function () {
+  msgEl.hidden = true;
+  const pass = $('pass').value;
+  if (!pass) { showMsg('비밀번호를 입력하세요.', true); return; }
+  saveBtn.disabled = true;
+  saveBtn.textContent = '저장 중...';
+  try {
+    const d = await callApi({
+      action: 'admin_save', pass: pass,
+      title: $('fTitle').value,
+      open: $('fOpen').value,
+      confirmed: $('fConfirmed').value,
+      waitlist: $('fWaitlist').value,
+      total: $('fTotal').value,
+    });
+    if (!d.ok) { showMsg(d.detail || '저장하지 못했습니다.', true); }
+    else {
+      const e2 = d.effective;
+      $('eff').textContent = '적용된 값 — 모집 ' + e2.confirmed + '명 · 대기 ' + e2.waitlist +
+        '명 · 마감 ' + e2.total + '명 · 제목 『' + e2.title + '』' +
+        (e2.openAtMs ? ' · 오픈 예약 설정됨' : ' · 즉시 오픈');
+      showMsg(d.message);
+      refreshStatus();
+    }
+  } catch (e) {
+    showMsg('저장 실패 — 네트워크를 확인하고 다시 시도하세요.', true);
+  }
+  saveBtn.disabled = false;
+  saveBtn.textContent = '저장 — 즉시 반영';
+});
+
+refreshStatus();
+</script>
+</body>
+</html>

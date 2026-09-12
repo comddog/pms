@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>『책과 문화의 밤』 10월 프로그램 신청</title>
+<style>
+  :root {
+    --navy-1: #101b3e;
+    --navy-2: #1c2a5e;
+    --gold: #f5c542;
+    --line: #e3e7f2;
+    --text: #1d2440;
+    --muted: #7a829e;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Apple SD Gothic Neo",
+                 "Noto Sans KR", "Malgun Gothic", sans-serif;
+    background:
+      radial-gradient(2px 2px at 12% 18%, rgba(255,255,255,.85) 50%, transparent 51%),
+      radial-gradient(2px 2px at 78% 9%,  rgba(255,255,255,.65) 50%, transparent 51%),
+      radial-gradient(1.6px 1.6px at 30% 34%, rgba(255,255,255,.5) 50%, transparent 51%),
+      radial-gradient(2px 2px at 88% 30%, rgba(255,255,255,.75) 50%, transparent 51%),
+      radial-gradient(1.6px 1.6px at 60% 6%,  rgba(255,255,255,.5) 50%, transparent 51%),
+      radial-gradient(2px 2px at 45% 15%, rgba(255,255,255,.6) 50%, transparent 51%),
+      linear-gradient(160deg, var(--navy-1) 0%, var(--navy-2) 55%, #24356f 100%);
+    color: var(--text);
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap {
+    max-width: 480px;
+    margin: 0 auto;
+    min-height: 100vh;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    padding: 28px 18px 18px;
+  }
+  header { text-align: center; color: #fff; margin-bottom: 20px; }
+  .org { font-size: 13px; letter-spacing: 2px; opacity: .85; margin-bottom: 10px; }
+  h1 { font-size: 26px; line-height: 1.3; font-weight: 700; text-shadow: 0 2px 12px rgba(0,0,0,.25); }
+  .sub { font-size: 15px; margin-top: 6px; opacity: .9; }
+  .status {
+    display: inline-block; margin-top: 14px;
+    font-size: 13px; padding: 6px 14px; border-radius: 999px;
+    background: rgba(255,255,255,.14); color: #ffe9a8;
+    border: 1px solid rgba(255,255,255,.25);
+  }
+  .status.open::before { content: "○ "; color: var(--gold); }
+  .status.closed { color: #ffd2d2; }
+  .status.closed::before { content: "● "; }
+  .status.pre { color: #ffe9a8; }
+  .status.pre::before { content: "○ "; color: var(--gold); }
+
+  main { flex: 1; }
+  .card {
+    background: #fff; border-radius: 18px;
+    padding: 22px 18px;
+    box-shadow: 0 12px 40px rgba(6,12,40,.45);
+  }
+  .field { margin-bottom: 14px; }
+  label { display: block; font-size: 14px; font-weight: 600; margin-bottom: 6px; color: #3a4160; }
+  select, input {
+    width: 100%; height: 50px;
+    font-size: 16px; /* iOS 자동 확대 방지 */
+    font-family: inherit;
+    border: 1.5px solid var(--line); border-radius: 12px;
+    padding: 0 14px; background: #fafbfe; color: var(--text);
+    -webkit-appearance: none; appearance: none;
+  }
+  select {
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8'><path d='M1 1l5 5 5-5' stroke='%237a829e' stroke-width='2' fill='none' stroke-linecap='round'/></svg>");
+    background-repeat: no-repeat; background-position: right 16px center;
+    padding-right: 40px;
+  }
+  select:focus, input:focus { outline: none; border-color: #5a6ac9; background: #fff; }
+  .row { display: flex; gap: 10px; }
+  .row .field { flex: 1; }
+
+  button {
+    width: 100%; height: 54px; margin-top: 6px;
+    font-size: 17px; font-weight: 700; font-family: inherit;
+    color: #221a04;
+    background: linear-gradient(180deg, #ffd866, var(--gold));
+    border: none; border-radius: 12px;
+    box-shadow: 0 6px 18px rgba(245,197,66,.35);
+    cursor: pointer;
+  }
+  button:active { transform: translateY(1px); }
+  button:disabled { opacity: .55; cursor: wait; }
+  .error { color: #d33; font-size: 14px; margin-top: 10px; text-align: center; }
+
+  /* 오픈 대기 화면 */
+  .wait-title { text-align: center; font-size: 19px; font-weight: 700; }
+  .open-at {
+    text-align: center; font-size: 14px; font-weight: 600;
+    color: #2d3a7d; margin-top: 8px; line-height: 1.6;
+  }
+  .count-box { display: flex; justify-content: center; align-items: baseline; margin: 18px 0 12px; }
+  .count-box .num {
+    font-size: 32px; font-weight: 800; color: var(--text);
+    font-variant-numeric: tabular-nums; letter-spacing: 1px;
+  }
+  .count-box .num.d { color: #b3821a; }
+  .count-box .lab { font-size: 13px; color: var(--muted); margin: 0 10px 0 3px; }
+  .count-box .lab:last-child { margin-right: 0; }
+  .now-time { text-align: center; font-size: 13px; color: var(--muted); }
+  .now-time b { color: var(--text); font-variant-numeric: tabular-nums; }
+  .wait-sub {
+    margin-top: 16px; padding: 12px 14px;
+    background: #f6f8ff; border-radius: 10px;
+    font-size: 13px; color: #4a5480; line-height: 1.6; text-align: center;
+  }
+
+  /* 접수 완료 화면 */
+  .done-icon {
+    width: 64px; height: 64px; border-radius: 50%;
+    background: #eaf6ee; border: 2px solid #56b96f;
+    margin: 4px auto 14px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .done-icon::after {
+    content: ""; width: 26px; height: 14px;
+    border-left: 4px solid #56b96f; border-bottom: 4px solid #56b96f;
+    transform: rotate(-45deg) translate(1px, -3px);
+  }
+  .done-title { text-align: center; font-size: 20px; font-weight: 700; }
+  .badge {
+    display: block; width: fit-content; margin: 16px auto;
+    padding: 12px 26px; border-radius: 14px;
+    background: #fff7df; border: 1.5px solid #f0d47a;
+    font-size: 19px; font-weight: 700; color: #6b4d00; text-align: center;
+  }
+  .badge.wait { background: #eef1fb; border-color: #a9b4e0; color: #2d3a7d; }
+  .done-info {
+    margin-top: 6px; font-size: 14px; color: var(--muted);
+    text-align: center; line-height: 1.7;
+  }
+  .done-info b { color: var(--text); }
+  .sms-note {
+    margin-top: 16px; padding: 12px 14px;
+    background: #f6f8ff; border-radius: 10px;
+    font-size: 13px; color: #4a5480; line-height: 1.6;
+  }
+
+  /* 마감 화면 */
+  .closed-title { text-align: center; font-size: 21px; font-weight: 700; color: #b03a3a; }
+  .closed-box {
+    margin: 18px auto 6px; padding: 16px;
+    background: #fdf3f3; border: 1.5px solid #eec7c7; border-radius: 12px;
+    font-size: 14px; color: #6e4444; line-height: 1.8; text-align: center;
+  }
+  .closed-sub { text-align: center; font-size: 13px; color: var(--muted); margin-top: 14px; line-height: 1.7; }
+
+  footer {
+    text-align: center; color: rgba(255,255,255,.75);
+    font-size: 13px; letter-spacing: 1px; padding: 26px 0 8px;
+  }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <p class="org">일광초등학교 별빛도서관</p>
+    <h1 id="progTitle">『책과 문화의 밤』</h1>
+    <p class="sub">10월 프로그램 신청</p>
+    <p id="status" class="status">신청 현황 확인 중&hellip;</p>
+  </header>
+
+  <main>
+    <!-- 오픈 대기 화면 -->
+    <section id="waiting" class="card" hidden>
+      <p class="wait-title">아직 신청 시간이 아닙니다</p>
+      <p id="openAtLine" class="open-at">오픈 시각을 확인하는 중&hellip;</p>
+      <div class="count-box">
+        <span id="cdD" class="num d">00</span><span class="lab">일</span>
+        <span id="cdH" class="num">00</span><span class="lab">시간</span>
+        <span id="cdM" class="num">00</span><span class="lab">분</span>
+        <span id="cdS" class="num">00</span><span class="lab">초</span>
+      </div>
+      <p class="now-time">현재 시각 <b id="nowTime">----.--.-- --:--:--</b></p>
+      <p class="wait-sub">오픈 시각이 되면 이 화면이 자동으로 신청서로 바뀝니다.<br>오픈 직후 순서대로 선착순 접수됩니다.</p>
+    </section>
+
+    <!-- 신청 폼 -->
+    <form id="form" class="card" autocomplete="off">
+      <div class="row">
+        <div class="field">
+          <label for="grade">학년</label>
+          <select id="grade" required>
+            <option value="" selected disabled>선택</option>
+            <option value="1">1학년</option><option value="2">2학년</option>
+            <option value="3">3학년</option><option value="4">4학년</option>
+            <option value="5">5학년</option><option value="6">6학년</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="cls">반</label>
+          <select id="cls" required>
+            <option value="" selected disabled>선택</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label for="student">학생명</label>
+        <input id="student" type="text" placeholder="예) 홍길동" maxlength="20" required>
+      </div>
+      <div class="field">
+        <label for="guardian">보호자명</label>
+        <input id="guardian" type="text" placeholder="예) 홍길순" maxlength="20" required>
+      </div>
+      <div class="field">
+        <label for="phone">보호자 연락처</label>
+        <input id="phone" type="tel" inputmode="numeric" placeholder="010-1234-5678" maxlength="13" required>
+      </div>
+      <button id="submitBtn" type="submit">신청하기</button>
+      <p id="formError" class="error" hidden></p>
+    </form>
+
+    <!-- 접수 완료 화면 -->
+    <section id="result" class="card" hidden>
+      <div class="done-icon"></div>
+      <p class="done-title">신청이 접수되었습니다</p>
+      <span id="orderBadge" class="badge"></span>
+      <p class="done-info">
+        제출 시간 <b id="doneTime"></b><br>
+        <span id="doneName"></span>
+      </p>
+      <p class="sms-note">신청 결과는 보호자 연락처로 문자 안내됩니다.<br>문자가 오지 않으면 연락처를 다시 확인해 주세요.</p>
+    </section>
+
+    <!-- 마감 화면 -->
+    <section id="closed" class="card" hidden>
+      <p class="closed-title">신청이 마감되었습니다</p>
+      <div class="closed-box">
+        <span id="closedDetail">선착순 15명과 대기자 15명 접수가 모두 완료되어</span><br>
+        더 이상 신청을 받을 수 없습니다.
+      </div>
+      <p class="closed-sub">
+        신청해 주신 모든 학부모님께 감사드립니다.<br>
+        문의: 일광책꿈터 별빛도서관
+      </p>
+    </section>
+  </main>
+
+  <footer>일광책꿈터 별빛도서관</footer>
+</div>
+
+<script>
+/* ============================================================
+ * 설정: 여기에 배포한 구글 앱스 스크립트 웹앱 주소를 붙여넣으세요.
+ * 예) const API_BASE = 'https://script.google.com/macros/s/AKfy.../exec';
+ * ============================================================ */
+const API_BASE = 'https://script.google.com/macros/s/AKfycbxsmJB0WSh06063KUXAS6nwSdAuhIHyazQjX5KixHSm-Wsn2xph4fhF9Pa-HnBDmXeM/exec';
+
+const form      = document.getElementById('form');
+const resultSec = document.getElementById('result');
+const closedSec = document.getElementById('closed');
+const statusEl  = document.getElementById('status');
+const submitBtn = document.getElementById('submitBtn');
+const formError = document.getElementById('formError');
+const waitingSec = document.getElementById('waiting');
+
+/* 오픈 예약 상태 (모두 서버 시각 기준) */
+let phase = 'loading';   // 'before' | 'open' | 'closed'
+let openAtMs = null;     // 오픈 예약 시각(밀리초), 예약 없으면 null
+let serverOffset = 0;    // 서버시각 - 내 기기시각
+let lastStatusFetch = 0;
+let confirmedLimit = 15; // 모집인원 (status 응답으로 갱신)
+let waitlistLimit = 15;  // 대기자수
+
+/* 반 select를 1~10반까지 채우기 */
+(function () {
+  const sel = document.getElementById('cls');
+  for (let i = 1; i <= 10; i++) {
+    const opt = document.createElement('option');
+    opt.value = String(i); opt.textContent = i + '반';
+    sel.appendChild(opt);
+  }
+})();
+
+/* 연락처 자동 하이픈 (010-1234-5678) */
+document.getElementById('phone').addEventListener('input', function () {
+  let n = this.value.replace(/\D/g, '');
+  if (n.startsWith('02')) {
+    n = n.replace(/^(\d{2})(\d{3,4})(\d{4}).*$/, '$1-$2-$3');
+  } else {
+    n = n.replace(/^(\d{3})(\d{3,4})(\d{4}).*$/, '$1-$2-$3');
+  }
+  this.value = n;
+});
+
+/* ---------- 백엔드 호출 ---------- */
+async function api(params) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 15000);
+  try {
+    const res = await fetch(API_BASE + '?' + new URLSearchParams(params), {
+      method: 'GET', signal: ctrl.signal,
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    return await res.json();
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function checkStatus() {
+  if (!API_BASE) {
+    statusEl.textContent = '설정 필요: index.html의 API_BASE에 백엔드 주소 입력';
+    statusEl.classList.add('closed');
+    submitBtn.disabled = true;
+    return;
+  }
+  try {
+    const d = await api({ action: 'status' });
+    serverOffset = d.serverTime - Date.now();
+    openAtMs = d.openAt || null;
+    lastStatusFetch = Date.now();
+    if (d.title) {
+      document.getElementById('progTitle').textContent = '『' + d.title + '』';
+      document.title = '『' + d.title + '』 10월 프로그램 신청';
+    }
+    confirmedLimit = d.confirmedLimit || 15;
+    waitlistLimit = d.waitlistLimit || 15;
+    if (d.closed) {
+      phase = 'closed';
+      showClosed();
+    } else if (d.phase === 'before') {
+      phase = 'before';
+      showWaiting(d.openAtInvalid);
+    } else {
+      phase = 'open';
+      showForm(d.count);
+    }
+  } catch (e) {
+    statusEl.textContent = '신청 현황을 불러올 수 없습니다';
+  }
+}
+
+function showClosed() {
+  waitingSec.hidden = true;
+  form.hidden = true;
+  resultSec.hidden = true;
+  closedSec.hidden = false;
+  document.getElementById('closedDetail').textContent =
+    '선착순 ' + confirmedLimit + '명과 대기자 ' + waitlistLimit + '명 접수가 모두 완료되어';
+  statusEl.textContent = '신청 마감';
+  statusEl.classList.add('closed');
+}
+
+function showWaiting(openAtInvalid) {
+  waitingSec.hidden = false;
+  form.hidden = true;
+  resultSec.hidden = true;
+  closedSec.hidden = true;
+  if (openAtInvalid) {
+    document.getElementById('openAtLine').textContent =
+      '설정 시트의 오픈일시 형식을 확인하세요 (예: 2026-10-05 19:00)';
+  }
+  statusEl.textContent = '신청 오픈 전';
+  statusEl.classList.remove('open');
+  statusEl.classList.add('pre');
+}
+
+function showForm(count) {
+  waitingSec.hidden = true;
+  form.hidden = false;
+  resultSec.hidden = true;
+  closedSec.hidden = true;
+  statusEl.textContent = '현재 ' + count + '명 접수 (선착순 ' + confirmedLimit +
+                         '명 · 대기 ' + waitlistLimit + '명)';
+  statusEl.classList.remove('pre');
+  statusEl.classList.add('open');
+}
+
+/* ---------- 오픈 카운트다운 (서버 시각 기준, 1초마다 갱신) ---------- */
+function fmtKst(ms) {
+  const d = new Date(ms + 9 * 3600 * 1000); // 한국시간(KST)으로 표시
+  const p = n => String(n).padStart(2, '0');
+  return d.getUTCFullYear() + '-' + p(d.getUTCMonth() + 1) + '-' + p(d.getUTCDate())
+       + ' ' + p(d.getUTCHours()) + ':' + p(d.getUTCMinutes()) + ':' + p(d.getUTCSeconds());
+}
+
+function openAtText_() {
+  const d = new Date(openAtMs + 9 * 3600 * 1000);
+  const days = ['일', '월', '화', '수', '목', '금', '토'];
+  const p = n => String(n).padStart(2, '0');
+  return (d.getUTCMonth() + 1) + '월 ' + d.getUTCDate() + '일(' + days[d.getUTCDay()] + ') '
+       + p(d.getUTCHours()) + ':' + p(d.getUTCMinutes());
+}
+
+function tick() {
+  if (phase !== 'before' || !openAtMs) return;
+  const nowSrv = Date.now() + serverOffset;
+  document.getElementById('nowTime').textContent = fmtKst(nowSrv);
+  document.getElementById('openAtLine').textContent = '신청 오픈: ' + openAtText_();
+
+  let rem = openAtMs - nowSrv;
+  if (rem <= 0) {
+    rem = 0;
+    if (Date.now() - lastStatusFetch > 10000) checkStatus();  // 0이 되면 서버 재확인
+  }
+  const s = Math.floor(rem / 1000);
+  const p = n => String(n).padStart(2, '0');
+  document.getElementById('cdD').textContent = p(Math.floor(s / 86400));
+  document.getElementById('cdH').textContent = p(Math.floor(s % 86400 / 3600));
+  document.getElementById('cdM').textContent = p(Math.floor(s % 3600 / 60));
+  document.getElementById('cdS').textContent = p(s % 60);
+}
+setInterval(tick, 1000);
+
+function showError(msg) {
+  formError.textContent = msg;
+  formError.hidden = false;
+}
+
+/* ---------- 제출 ---------- */
+form.addEventListener('submit', async function (e) {
+  e.preventDefault();
+  formError.hidden = true;
+
+  const grade   = document.getElementById('grade').value;
+  const cls     = document.getElementById('cls').value;
+  const student = document.getElementById('student').value.trim();
+  const guardian= document.getElementById('guardian').value.trim();
+  const phone   = document.getElementById('phone').value.trim();
+
+  if (!grade || !cls || !student || !guardian || !phone) {
+    showError('모든 항목을 입력해 주세요.');
+    return;
+  }
+  if (!/^01[016789]-\d{3,4}-\d{4}$/.test(phone)) {
+    showError('연락처를 010-1234-5678 형식으로 입력해 주세요.');
+    return;
+  }
+
+  submitBtn.disabled = true;
+  submitBtn.textContent = '접수 중...';
+
+  try {
+    const d = await api({
+      action: 'submit',
+      grade: grade, class: cls,
+      student: student, guardian: guardian, phone: phone,
+    });
+
+    if (d.ok) {
+      const badge = document.getElementById('orderBadge');
+      if (d.confirmed) {
+        badge.textContent = '선착순 ' + d.order + '번 확정';
+        badge.classList.remove('wait');
+      } else {
+        badge.textContent = '대기자 ' + d.waitlistOrder + '번';
+        badge.classList.add('wait');
+      }
+      document.getElementById('doneTime').textContent = d.submittedAt;
+      document.getElementById('doneName').textContent =
+        grade + '학년 ' + cls + '반 ' + student + ' 학생';
+      form.hidden = true;
+      resultSec.hidden = false;
+      resultSec.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    } else if (d.error === 'FULL') {
+      showClosed();
+    } else if (d.error === 'NOT_OPEN') {
+      submitBtn.disabled = false;
+      submitBtn.textContent = '신청하기';
+      showError('아직 신청 오픈 시간이 아닙니다.');
+      checkStatus();
+    } else if (d.error === 'DUPLICATE') {
+      submitBtn.disabled = false;
+      submitBtn.textContent = '신청하기';
+      showError('이미 접수된 신청입니다. 문의: 별빛도서관');
+    } else {
+      submitBtn.disabled = false;
+      submitBtn.textContent = '신청하기';
+      showError(d.detail || '접수에 실패했습니다. 다시 시도해 주세요.');
+    }
+  } catch (err) {
+    submitBtn.disabled = false;
+    submitBtn.textContent = '신청하기';
+    showError('전송에 실패했습니다. 네트워크를 확인하고 다시 시도해 주세요.');
+  }
+});
+
+/* 최초 확인 + 60초마다 오픈/마감 여부 갱신 */
+checkStatus();
+setInterval(checkStatus, 60000);
+</script>
+</body>
+</html>
