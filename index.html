@@ -98,6 +98,8 @@
   .status.closed::before { content: "● "; }
   .status.pre { color: #ffe9a8; }
   .status.pre::before { content: "○ "; color: var(--gold); }
+  .status.loading { animation: pulse 1.2s ease-in-out infinite; }
+  @keyframes pulse { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
 
   main { flex: 1; }
   .card {
@@ -218,7 +220,7 @@
     <p class="org">일광책꿈터 별빛도서관</p>
     <h1 id="progTitle">『책과 문화의 밤』</h1>
     <p class="sub">프로그램 신청</p>
-    <p id="status" class="status">신청 현황 확인 중&hellip;</p>
+    <p id="status" class="status loading">신청 현황 확인 중&hellip;</p>
   </header>
 
   <main>
@@ -306,7 +308,7 @@
  * 설정: 여기에 배포한 구글 앱스 스크립트 웹앱 주소를 붙여넣으세요.
  * 예) const API_BASE = 'https://script.google.com/macros/s/AKfy.../exec';
  * ============================================================ */
-const API_BASE = 'https://script.google.com/macros/s/AKfycbxsmJB0WSh06063KUXAS6nwSdAuhIHyazQjX5KixHSm-Wsn2xph4fhF9Pa-HnBDmXeM/exec';
+const API_BASE = 'https://script.google.com/macros/s/AKfycbxflgAVZ6oxaA1eGvWoUW7zNXDw52dZaRSA8ip0oiXfKGkKmaFfZqvt3aHUWAknzCyE/exec';
 
 const form      = document.getElementById('form');
 const resultSec = document.getElementById('result');
@@ -323,6 +325,8 @@ let serverOffset = 0;    // 서버시각 - 내 기기시각
 let lastStatusFetch = 0;
 let confirmedLimit = 15; // 모집인원 (status 응답으로 갱신)
 let waitlistLimit = 15;  // 대기자수
+let statusChecking = false; // 동시 조회 방지 플래그
+let statusFails = 0;        // 연속 실패 횟수 (자동 재시도 주기 계산용)
 
 /* 반 select를 1~10반까지 채우기 */
 (function () {
@@ -359,6 +363,40 @@ document.getElementById('phone').addEventListener('input', function () {
   } catch (e) { /* localStorage를 쓸 수 없는 환경은 무시 */ }
 })();
 
+/* ---------- 현황 캐시 ----------
+ * 마지막 상태(오픈 전/진행/마감, 접수 수, 오픈 시각)를 기기에 저장해 두고,
+ * 재방문 시 서버 응답 전에 저장된 화면을 먼저 보여줍니다(첫 열림 체감 개선).
+ * 서버 응답이 오면 항상 최신 값으로 갱신되며, 10분 지난 캐시는 버립니다. */
+function saveStatusCache(d) {
+  try {
+    localStorage.setItem('statusCache', JSON.stringify({
+      phase: d.phase, count: d.count, openAt: d.openAt || null,
+      serverNow: d.serverTime, savedAt: Date.now(),
+    }));
+  } catch (e) { /* 캐시 저장 실패는 무시 */ }
+}
+
+function applyCachedStatus() {
+  try {
+    const raw = localStorage.getItem('statusCache');
+    if (!raw) return;
+    const c = JSON.parse(raw);
+    if (!c || !c.phase || Date.now() - c.savedAt > 10 * 60 * 1000) return;
+    if (c.phase === 'closed') {
+      phase = 'closed';
+      showClosed();
+    } else if (c.phase === 'before' && c.openAt) {
+      phase = 'before';
+      openAtMs = c.openAt;
+      serverOffset = (c.serverNow || Date.now()) - c.savedAt;
+      showWaiting();
+    } else if (c.phase === 'open') {
+      phase = 'open';
+      showForm(c.count || 0);
+    }
+  } catch (e) { /* 캐시 오류는 무시 */ }
+}
+
 /* ---------- 백엔드 호출 ---------- */
 async function api(params) {
   const ctrl = new AbortController();
@@ -381,8 +419,12 @@ async function checkStatus() {
     submitBtn.disabled = true;
     return;
   }
+  if (statusChecking) return;   // 이미 진행 중인 조회가 있으면 건너뜀
+  statusChecking = true;
   try {
     const d = await api({ action: 'status' });
+    statusFails = 0;
+    statusEl.classList.remove('loading');
     serverOffset = d.serverTime - Date.now();
     openAtMs = d.openAt || null;
     lastStatusFetch = Date.now();
@@ -393,6 +435,7 @@ async function checkStatus() {
     }
     confirmedLimit = d.confirmedLimit || 15;
     waitlistLimit = d.waitlistLimit || 15;
+    saveStatusCache(d);
     if (d.closed) {
       phase = 'closed';
       showClosed();
@@ -404,7 +447,17 @@ async function checkStatus() {
       showForm(d.count);
     }
   } catch (e) {
-    statusEl.textContent = '신청 현황을 불러올 수 없습니다';
+    // 첫 시도가 실패해도 60초를 기다리지 않고 곧바로 재시도 (지연 체감 개선)
+    statusFails++;
+    if (statusFails <= 3) {
+      statusEl.textContent = '연결이 지연되고 있습니다 — 곧 자동으로 다시 시도합니다';
+      setTimeout(checkStatus, statusFails * 3000);
+    } else {
+      statusEl.textContent = '신청 현황을 불러올 수 없습니다 — 잠시 후 자동으로 다시 시도합니다';
+      setTimeout(checkStatus, 30000);
+    }
+  } finally {
+    statusChecking = false;
   }
 }
 
@@ -553,7 +606,8 @@ form.addEventListener('submit', async function (e) {
   }
 });
 
-/* 최초 확인 + 60초마다 오픈/마감 여부 갱신 */
+/* 최초: 저장된 캐시 먼저 반영 → 백엔드 조회(실패 시 자동 재시도) + 60초마다 갱신 */
+applyCachedStatus();
 checkStatus();
 setInterval(checkStatus, 60000);
 </script>
