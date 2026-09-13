@@ -290,7 +290,7 @@
     <section id="closed" class="card" hidden>
       <p class="closed-title">신청이 마감되었습니다</p>
       <div class="closed-box">
-        <span id="closedDetail">선착순 15명과 대기자 15명 접수가 모두 완료되어</span><br>
+        <span id="closedDetail">접수가 모두 완료되어</span><br>
         더 이상 신청을 받을 수 없습니다.
       </div>
       <p class="closed-sub">
@@ -371,6 +371,7 @@ function saveStatusCache(d) {
   try {
     localStorage.setItem('statusCache', JSON.stringify({
       phase: d.phase, count: d.count, openAt: d.openAt || null,
+      confirmedLimit: d.confirmedLimit, waitlistLimit: d.waitlistLimit,
       serverNow: d.serverTime, savedAt: Date.now(),
     }));
   } catch (e) { /* 캐시 저장 실패는 무시 */ }
@@ -382,6 +383,9 @@ function applyCachedStatus() {
     if (!raw) return;
     const c = JSON.parse(raw);
     if (!c || !c.phase || Date.now() - c.savedAt > 10 * 60 * 1000) return;
+    // 관리자 설정 인원수도 캐시에서 복원 — 마감/현황 화면에 기본값(15명)이 먼저 보이지 않게 함
+    if (c.confirmedLimit) confirmedLimit = c.confirmedLimit;
+    if (c.waitlistLimit) waitlistLimit = c.waitlistLimit;
     if (c.phase === 'closed') {
       phase = 'closed';
       showClosed();
