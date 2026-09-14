@@ -3,6 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<!-- 백엔드 연결을 미리 맺어 첫 상태 조회를 빠르게 (응답은 리다이렉트되는 googleusercontent에서 옴) -->
+<link rel="preconnect" href="https://script.google.com" crossorigin>
+<link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
 <title>『책과 문화의 밤』 프로그램 신청</title>
 <style>
   :root {
@@ -323,6 +326,7 @@ let phase = 'loading';   // 'before' | 'open' | 'closed'
 let openAtMs = null;     // 오픈 예약 시각(밀리초), 예약 없으면 null
 let serverOffset = 0;    // 서버시각 - 내 기기시각
 let lastStatusFetch = 0;
+let lastCount = 0;          // 마지막으로 확인한 접수 수 — 오픈 즉시 전환 때 화면 표시용
 let confirmedLimit = 15; // 모집인원 (status 응답으로 갱신)
 let waitlistLimit = 15;  // 대기자수
 let statusChecking = false; // 동시 조회 방지 플래그
@@ -366,7 +370,8 @@ document.getElementById('phone').addEventListener('input', function () {
 /* ---------- 현황 캐시 ----------
  * 마지막 상태(오픈 전/진행/마감, 접수 수, 오픈 시각)를 기기에 저장해 두고,
  * 재방문 시 서버 응답 전에 저장된 화면을 먼저 보여줍니다(첫 열림 체감 개선).
- * 서버 응답이 오면 항상 최신 값으로 갱신되며, 10분 지난 캐시는 버립니다. */
+ * 캐시는 만료 없이 항상 먼저 반영하고(stale-while-revalidate), 서버 응답이 오면
+ * 곧바로 최신 값으로 교정됩니다 — 첫 화면이 빈 "확인 중"으로 머무는 일이 없습니다. */
 function saveStatusCache(d) {
   try {
     localStorage.setItem('statusCache', JSON.stringify({
@@ -382,7 +387,8 @@ function applyCachedStatus() {
     const raw = localStorage.getItem('statusCache');
     if (!raw) return;
     const c = JSON.parse(raw);
-    if (!c || !c.phase || Date.now() - c.savedAt > 10 * 60 * 1000) return;
+    if (!c || !c.phase) return;
+    lastCount = c.count || 0;
     // 관리자 설정 인원수도 캐시에서 복원 — 마감/현황 화면에 기본값(15명)이 먼저 보이지 않게 함
     if (c.confirmedLimit) confirmedLimit = c.confirmedLimit;
     if (c.waitlistLimit) waitlistLimit = c.waitlistLimit;
@@ -444,10 +450,20 @@ async function checkStatus() {
       phase = 'closed';
       showClosed();
     } else if (d.phase === 'before') {
-      phase = 'before';
-      showWaiting(d.openAtInvalid);
+      // 즉시 전환 직후의 미세한 서버 시차(5초 이내)면 신청서를 유지해 화면 깜빡임을 막고,
+      // 실제 잠금(관리자 비상잠금 등)이면 대기 화면으로 되돌린다
+      const srvRem = (d.openAt !== null && d.openAt !== undefined) ? d.openAt - d.serverTime : null;
+      if (phase === 'open' && srvRem !== null && srvRem >= 0 && srvRem <= 5000) {
+        phase = 'open';
+        lastCount = d.count;
+        showForm(d.count);
+      } else {
+        phase = 'before';
+        showWaiting(d.openAtInvalid);
+      }
     } else {
       phase = 'open';
+      lastCount = d.count;
       showForm(d.count);
     }
   } catch (e) {
@@ -525,9 +541,16 @@ function tick() {
 
   let rem = openAtMs - nowSrv;
   if (rem <= 0) {
-    rem = 0;
-    if (Date.now() - lastStatusFetch > 10000) checkStatus();  // 0이 되면 서버 재확인
+    // 오픈 시각 도달 → 서버 응답을 기다리지 않고 즉시 신청서로 전환(오픈 순간 접속이
+    // 몰려 서버 확인이 늦어져도 화면은 바로 바뀜). 서버가 아직 잠금 상태로 답하면
+    // checkStatus가 되돌리고, 접수 자체는 서버가 다시 검증하므로 시계 조작으로 앞서갈 수 없음.
+    phase = 'open';
+    showForm(lastCount);
+    checkStatus();
+    return;
   }
+  // 오픈 2분 전부터는 5초 간격으로 상태·서버 시각을 새로 확인(시계 오차 최소화)
+  if (rem < 2 * 60 * 1000 && Date.now() - lastStatusFetch > 5000) checkStatus();
   const s = Math.floor(rem / 1000);
   const p = n => String(n).padStart(2, '0');
   document.getElementById('cdD').textContent = p(Math.floor(s / 86400));
@@ -543,7 +566,74 @@ function showError(msg) {
 }
 
 /* ---------- 제출 ---------- */
-form.addEventListener('submit', async function (e) {
+let notOpenRetried = false;   // 오픈 직후 NOT_OPEN 응답에 대한 1회 자동 재시도용
+
+function resetSubmitBtn() {
+  submitBtn.disabled = false;
+  submitBtn.textContent = '신청하기';
+}
+
+async function sendApplication() {
+  submitBtn.disabled = true;
+  submitBtn.textContent = '접수 중...';
+
+  const grade   = document.getElementById('grade').value;
+  const cls     = document.getElementById('cls').value;
+  const student = document.getElementById('student').value.trim();
+  const guardian= document.getElementById('guardian').value.trim();
+  const phone   = document.getElementById('phone').value.trim();
+
+  try {
+    const d = await api({
+      action: 'submit',
+      grade: grade, class: cls,
+      student: student, guardian: guardian, phone: phone,
+    });
+
+    if (d.ok) {
+      notOpenRetried = false;
+      const badge = document.getElementById('orderBadge');
+      if (d.confirmed) {
+        badge.textContent = '선착순 ' + d.order + '번 확정';
+        badge.classList.remove('wait');
+      } else {
+        badge.textContent = '대기자 ' + d.waitlistOrder + '번';
+        badge.classList.add('wait');
+      }
+      document.getElementById('doneTime').textContent = d.submittedAt;
+      document.getElementById('doneName').textContent =
+        grade + '학년 ' + cls + '반 ' + student + ' 학생';
+      form.hidden = true;
+      resultSec.hidden = false;
+      resultSec.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    } else if (d.error === 'FULL') {
+      showClosed();
+    } else if (d.error === 'NOT_OPEN') {
+      // 오픈 직후 서버 시계와의 미세한 차이로 잠금 상태로 답한 경우 2초 뒤 한 번 자동 재시도
+      if (!notOpenRetried) {
+        notOpenRetried = true;
+        showError('오픈 직후입니다 — 자동으로 다시 시도합니다…');
+        setTimeout(sendApplication, 2000);
+        return;
+      }
+      notOpenRetried = false;
+      resetSubmitBtn();
+      showError('아직 신청 오픈 시간이 아닙니다.');
+      checkStatus();
+    } else if (d.error === 'DUPLICATE') {
+      resetSubmitBtn();
+      showError('이미 접수된 신청입니다. 문의: 별빛도서관');
+    } else {
+      resetSubmitBtn();
+      showError(d.detail || '접수에 실패했습니다. 다시 시도해 주세요.');
+    }
+  } catch (err) {
+    resetSubmitBtn();
+    showError('전송에 실패했습니다. 네트워크를 확인하고 다시 시도해 주세요.');
+  }
+}
+
+form.addEventListener('submit', function (e) {
   e.preventDefault();
   formError.hidden = true;
 
@@ -562,52 +652,8 @@ form.addEventListener('submit', async function (e) {
     return;
   }
 
-  submitBtn.disabled = true;
-  submitBtn.textContent = '접수 중...';
-
-  try {
-    const d = await api({
-      action: 'submit',
-      grade: grade, class: cls,
-      student: student, guardian: guardian, phone: phone,
-    });
-
-    if (d.ok) {
-      const badge = document.getElementById('orderBadge');
-      if (d.confirmed) {
-        badge.textContent = '선착순 ' + d.order + '번 확정';
-        badge.classList.remove('wait');
-      } else {
-        badge.textContent = '대기자 ' + d.waitlistOrder + '번';
-        badge.classList.add('wait');
-      }
-      document.getElementById('doneTime').textContent = d.submittedAt;
-      document.getElementById('doneName').textContent =
-        grade + '학년 ' + cls + '반 ' + student + ' 학생';
-      form.hidden = true;
-      resultSec.hidden = false;
-      resultSec.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    } else if (d.error === 'FULL') {
-      showClosed();
-    } else if (d.error === 'NOT_OPEN') {
-      submitBtn.disabled = false;
-      submitBtn.textContent = '신청하기';
-      showError('아직 신청 오픈 시간이 아닙니다.');
-      checkStatus();
-    } else if (d.error === 'DUPLICATE') {
-      submitBtn.disabled = false;
-      submitBtn.textContent = '신청하기';
-      showError('이미 접수된 신청입니다. 문의: 별빛도서관');
-    } else {
-      submitBtn.disabled = false;
-      submitBtn.textContent = '신청하기';
-      showError(d.detail || '접수에 실패했습니다. 다시 시도해 주세요.');
-    }
-  } catch (err) {
-    submitBtn.disabled = false;
-    submitBtn.textContent = '신청하기';
-    showError('전송에 실패했습니다. 네트워크를 확인하고 다시 시도해 주세요.');
-  }
+  notOpenRetried = false;
+  sendApplication();
 });
 
 /* 최초: 저장된 캐시 먼저 반영 → 백엔드 조회(실패 시 자동 재시도) + 60초마다 갱신 */
